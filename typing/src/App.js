@@ -11,27 +11,30 @@ function App() {
   const [prevKeyPressTime, setPrevKeyPressTime] = useState(null); //
   const [keyPressIntervals, setKeyPressIntervals] = useState([]);
 
-  const generateBlock = () => {
+  const generateBlock = (length = 100) => {
+    console.log(profile);
     let chars = 'qwertyuiopasdfghjklzxvbnm ';
+    let curProfile = { ...profile };
     
     if (Object.keys(profile).length === 0) {
       for (let char1 of chars) {
-        profile[char1] = {};
+        curProfile[char1] = {};
         for (let char2 of chars) {
-          profile[char1][char2] = 0.25;
+          curProfile[char1][char2] = 1000;
         }
       }
+      setProfile(curProfile);
     }
     
     let block = '';
     let num_chars = 0;
     let char = chars[Math.floor(Math.random() * chars.length)];
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < length; i++) {
       let probs = [];
     
-      for (let sample_char in profile[char]) {
-        probs.push(profile[char][sample_char]);
+      for (let sample_char in curProfile[char]) {
+        probs.push(curProfile[char][sample_char]);
       }
     
       let sum = probs.reduce((a, b) => a + b, 0);
@@ -40,6 +43,10 @@ function App() {
       sum = probs.reduce((a, b) => a + b, 0);
     
       let idx = weightedRandom(probs, sum);
+      while (i === length - 1 && chars[idx] === ' ') {
+        idx = weightedRandom(probs, sum);
+      }
+      
       char = chars[idx];
     
       if (char === ' ') num_chars = -1;
@@ -47,13 +54,39 @@ function App() {
       block += char;
       num_chars += 1;
     }
-
     setBlockText(block);
   }
 
   useEffect(() => {
-    generateBlock()
-  }, []);
+    generateBlock();
+  }, [profile]);
+
+  useEffect(() => {
+    if (wpm !== 'N/A') {
+      setCurrentIndex(0);
+      setStartTime(null);
+      setPrevKeyPressTime(null);
+    }
+  }, [wpm])
+
+  useEffect(() => {
+    if (keyPressIntervals.length === blockText.length - 1) {
+      const totalTime = (new Date().getTime() - startTime) / 1000 / 60;
+      setWpm(parseFloat(blockText.length / 5 / totalTime).toFixed(1));
+      
+      let curProf = { ...profile };
+      for (let i = 0; i < keyPressIntervals.length; i++) {
+        if (curProf[blockText[i]][blockText[i + 1]] == 1000) {
+          curProf[blockText[i]][blockText[i + 1]] = 1 / keyPressIntervals[i];
+        } else {
+          curProf[blockText[i]][blockText[i + 1]] = 
+          (curProf[blockText[i]][blockText[i + 1]] + 1 / keyPressIntervals[i]) / 2;
+        }
+      }
+      setProfile(curProf);
+      setKeyPressIntervals([]);
+    }
+  }, [keyPressIntervals]);
 
   useEffect(() => {
     // Event listener for keypress
@@ -63,26 +96,14 @@ function App() {
       if (startTime === null) {
         setStartTime(currentTime);
       }
-
-      if (prevKeyPressTime !== null) {
-        const interval = currentTime - prevKeyPressTime;
-        setKeyPressIntervals((prevIntervals) => [...prevIntervals, interval]);
-      }
-
       if (blockText[currentIndex] === event.key) {
+        if (prevKeyPressTime !== null) {
+          const interval = (currentTime - prevKeyPressTime) / 1000;
+          setKeyPressIntervals((prevIntervals) => [...prevIntervals, interval]);
+        }
+
         setCurrentIndex((prevIndex) => prevIndex + 1);
         setPrevKeyPressTime(currentTime);
-
-        if (currentIndex === blockText.length - 1) {
-          setCurrentIndex(0);
-          setStartTime(null);
-          setPrevKeyPressTime(null);
-          setKeyPressIntervals([]);
-          generateBlock();
-          const totalTime = (currentTime - startTime) / 1000 / 60;
-          console.log(totalTime);
-          setWpm(parseFloat(20 / totalTime).toFixed(1));
-        }
       }
     }
     
