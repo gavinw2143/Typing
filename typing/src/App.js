@@ -1,18 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 function App() {
-  // Initialize the state variable
+  // Initialize state variables
+  const [isProfileInitialized, setIsProfileInitialized] = useState(false);
   const [blockText, setBlockText] = useState(''); // Generating text
   const [currentIndex, setCurrentIndex] = useState(0); // Character tracking
-  const [profile, setProfile] = useState({}) // Metrics for generating new text
+  const [profile, setProfile] = useState({}); // Metrics for generating new text
   const [startTime, setStartTime] = useState(null); // For gathering WPM
   const [wpm, setWpm] = useState('N/A'); // WPM display
   const [prevKeyPressTime, setPrevKeyPressTime] = useState(null); //
   const [keyPressIntervals, setKeyPressIntervals] = useState([]);
 
+  // Get local storage
+  useEffect(() => {
+    const savedProfile = localStorage.getItem('typingProfile');
+    console.log('Retrieved from local storage:', savedProfile);
+    if (savedProfile) {
+      setProfile(JSON.parse(savedProfile));
+    }
+  }, []);
+
   const generateBlock = (length = 100) => {
-    console.log(profile);
     let chars = 'qwertyuiopasdfghjklzxvbnm ';
     let curProfile = { ...profile };
     
@@ -25,7 +34,7 @@ function App() {
       }
       setProfile(curProfile);
     }
-    
+
     let block = '';
     let num_chars = 0;
     let char = chars[Math.floor(Math.random() * chars.length)];
@@ -57,7 +66,13 @@ function App() {
     setBlockText(block);
   }
 
+  const initialRender = useRef(true);
+
   useEffect(() => {
+    if (initialRender.current) {
+      initialRender.current = false;
+      return;
+    }
     generateBlock();
   }, [profile]);
 
@@ -124,6 +139,15 @@ function App() {
       if (r <= sum) return Number(i);
     }
   }
+
+  useEffect(() => {
+    if (isProfileInitialized) {
+      console.log('Saved profile to local storage');  // Debugging line
+      localStorage.setItem('typingProfile', JSON.stringify(profile));
+    } else {
+      setIsProfileInitialized(true);
+    }
+  }, [profile]);
 
   return (
     <div className="App">
